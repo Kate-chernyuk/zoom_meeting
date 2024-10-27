@@ -1,0 +1,65 @@
+import requests
+import json
+from datetime import datetime, timedelta
+
+API_KEY = 'your_api_key'  
+API_SECRET = 'your_api_secret'  
+OAUTH_TOKEN = 'your_oauth_token'  
+USER_ID = 'your_user_id'  
+
+def create_meeting(topic="Встреча"):
+    url = f"https://api.zoom.us/v2/users/{USER_ID}/meetings"
+    headers = {
+        "Authorization": f"Bearer {OAUTH_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    meeting_data = {
+        "topic": topic,
+        "type": 2,
+        "start_time": (datetime.utcnow() + timedelta(days=1)).isoformat() + 'Z',
+        "duration": 30,  
+        "timezone": "UTC"
+    }
+    
+    response = requests.post(url, headers=headers, data=json.dumps(meeting_data))
+    return response.json()
+
+def get_past_meetings():
+    url = f"https://api.zoom.us/v2/users/{USER_ID}/meetings"
+    headers = {
+        "Authorization": f"Bearer {OAUTH_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    params = {
+        "type": "past",
+        "page_size": 30,
+        "from": (datetime.utcnow() - timedelta(days=7)).isoformat(),
+        "to": datetime.utcnow().isoformat()
+    }
+    
+    response = requests.get(url, headers=headers, params=params)
+    return response.json()
+
+def write_meeting_data(meeting):
+    with open('meetings.txt', 'a') as file:
+        file.write(f"Meeting ID: {meeting['id']}\n")
+        file.write(f"Join URL: {meeting['join_url']}\n")
+        file.write(f"Start Time: {meeting['start_time']}\n\n")
+
+def create_test_meetings(count=5):
+    for i in range(count):
+        start_time = (datetime.utcnow() - timedelta(days=i + 1)).isoformat() + 'Z'
+        test_meeting = create_meeting(topic=f"Тестовая встреча {i + 1}")
+        write_meeting_data(test_meeting)
+
+if __name__ == "__main__":
+    new_meeting = create_meeting()
+    write_meeting_data(new_meeting)
+    past_meetings = get_past_meetings()
+
+    if 'meetings' not in past_meetings or not past_meetings['meetings']:
+        print("Не найдено прошедших встреч. Создаём тестовые встречи")
+        create_test_meetings() 
+    else:
+        for meeting in past_meetings['meetings']:
+            print(f"Тема: {meeting['topic']}, Дата и время: {meeting['start_time']}, Количество участников: {meeting['participants']}")
